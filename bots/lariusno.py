@@ -34,13 +34,46 @@ creds_dict = json.loads(creds_json)
 creds = Credentials.from_service_account_info(creds_dict, scopes=scope)
 client = gspread.authorize(creds)
 
-sheet = client.open_by_key(SHEET_KEY).sheet1
-days_off_sheet = client.open_by_key(SHEET_KEY).worksheet("DaysOff")
-users_sheet = client.open_by_key(SHEET_KEY).worksheet("Users")
-settings_sheet = client.open_by_key(SHEET_KEY).worksheet("Settings")
-active_breaks_sheet = client.open_by_key(SHEET_KEY).worksheet("ActiveBreaks")
-blocked_users_sheet = client.open_by_key(SHEET_KEY).worksheet("BlockedUsers")
-shifts_sheet = client.open_by_key(SHEET_KEY).worksheet("Shifts")
+spreadsheet = None
+sheet = None
+days_off_sheet = None
+users_sheet = None
+settings_sheet = None
+active_breaks_sheet = None
+blocked_users_sheet = None
+shifts_sheet = None
+
+
+def init_sheets():
+    global spreadsheet, sheet, days_off_sheet, users_sheet
+    global settings_sheet, active_breaks_sheet, blocked_users_sheet, shifts_sheet
+
+    spreadsheet = client.open_by_key(SHEET_KEY)
+    sheet = spreadsheet.sheet1
+    days_off_sheet = spreadsheet.worksheet("DaysOff")
+    users_sheet = spreadsheet.worksheet("Users")
+    settings_sheet = spreadsheet.worksheet("Settings")
+    active_breaks_sheet = spreadsheet.worksheet("ActiveBreaks")
+    blocked_users_sheet = spreadsheet.worksheet("BlockedUsers")
+    shifts_sheet = spreadsheet.worksheet("Shifts")
+
+
+def load_startup_data():
+    users.clear()
+    blocked_users.clear()
+    break_data.clear()
+
+    try:
+        records = users_sheet.get_all_values()
+        for r in records:
+            if len(r) > 1 and r[1].isdigit():
+                users.add(int(r[1]))
+    except:
+        pass
+
+    restore_active_breaks()
+    load_blocked_users()
+
 
 break_data = {}
 shift_data = {}
@@ -50,14 +83,6 @@ calendar_messages = {}
 last_messages = {}
 blocked_users = set()
 salary_waiting = {}
-
-try:
-    records = users_sheet.get_all_values()
-    for r in records:
-        if len(r) > 1 and r[1].isdigit():
-            users.add(int(r[1]))
-except:
-    pass
 
 main_keyboard = ReplyKeyboardMarkup(
     keyboard=[
@@ -106,6 +131,7 @@ salary_keyboard = ReplyKeyboardMarkup(
     ],
     resize_keyboard=True
 )
+
 
 def get_telegram_link(user):
     if user.username:
@@ -228,9 +254,6 @@ def remove_blocked_user_from_sheet(user_id):
         pass
 
 
-restore_active_breaks()
-load_blocked_users()
-
 def get_team_limit():
     try:
         records = settings_sheet.get_all_values()
@@ -318,16 +341,16 @@ def check_break_type_limit(user_id, minutes):
     remaining_minutes = 60 - total_planned_minutes
 
     if remaining_minutes <= 0:
-        return False, "You have already used the full break limit for today: 60 minutes"
+        return False, "❌ You have already used the full break limit for today: 60 minutes"
 
     if breaks_15 >= 4:
-        return False, "You have already used the full break limit for today: 60 minutes"
+        return False, "❌ You have already used the full break limit for today: 60 minutes"
 
     if breaks_30 >= 2:
-        return False, "You have already used the full break limit for today: 60 minutes"
+        return False, "❌ You have already used the full break limit for today: 60 minutes"
 
     if minutes > remaining_minutes:
-        return False, f"You only have {remaining_minutes} break minutes left for today"
+        return False, f"❌ You only have {remaining_minutes} break minutes left for today"
 
     return True, None
 
@@ -515,7 +538,7 @@ async def break_control(user_id, minutes, name, username):
             f"Delay: {delay_minutes} min"
         )
 
-        await bot.send_message(user_id, "🚨 Break is over! Please return to work!")
+        await bot.send_message(user_id, "🚨 Break is over! Return to work!")
         await bot.send_message(ADMIN_ID, admin_text)
         await bot.send_message(OWNER_ID, admin_text)
 
@@ -782,7 +805,7 @@ async def handle(message: Message):
             await send_clean_message(user_id, "You do not have any upcoming days off", reply_markup=days_keyboard)
             return
 
-        text = "Your upcoming days off:\n\n"
+        text = "Your days off:\n\n"
         for r in user_days:
             text += f"{r[1]}\n"
 
@@ -812,7 +835,7 @@ async def handle(message: Message):
         user_days.sort(key=lambda r: datetime.strptime(r[1], "%d.%m.%Y"))
 
         if not user_days:
-            await send_clean_message(user_id, "You have no upcoming days off to cancel", reply_markup=days_keyboard)
+            await send_clean_message(user_id, "You have no days off to cancel", reply_markup=days_keyboard)
             return
 
         buttons = []
@@ -930,7 +953,7 @@ async def handle(message: Message):
         else:
             await send_clean_message(
                 user_id,
-                "❗ Please choose: 15 minutes or 30 minutes",
+                "❗ Choose 15 minutes or 30 minutes",
                 reply_markup=break_time_keyboard
             )
             return
@@ -1186,7 +1209,7 @@ async def today_stats(message: Message):
     else:
         text += "No breaks today\n"
 
-    text += "\nToday's days off:\n"
+    text += "\nDays off today:\n"
     if dayoff_users:
         text += "\n".join(dayoff_users)
     else:
@@ -1249,6 +1272,9 @@ async def delete_user(message: Message):
 
 async def start_bot():
     print("English bot started")
+
+    init_sheets()
+    load_startup_data()
 
     for user_id, data in break_data.items():
         asyncio.create_task(
