@@ -1099,14 +1099,6 @@ async def select_day(callback: CallbackQuery):
     await bot.send_message(ADMIN_ID, text)
     await bot.send_message(OWNER_ID, text)
 
-    for u in users:
-        if u == user_id:
-            continue
-        try:
-            await bot.send_message(u, text)
-        except:
-            pass
-
     try:
         await callback.message.delete()
     except:
@@ -1153,14 +1145,6 @@ async def cancel_day(callback: CallbackQuery):
 
     await bot.send_message(ADMIN_ID, text)
     await bot.send_message(OWNER_ID, text)
-
-    for u in users:
-        if u == user_id:
-            continue
-        try:
-            await bot.send_message(u, text)
-        except:
-            pass
 
     try:
         await callback.message.delete()
