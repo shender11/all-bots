@@ -13,7 +13,7 @@ import gspread
 from google.oauth2.service_account import Credentials
 
 TOKEN = "8600203453:AAGEVhln4M4mCqhkkb7XpolCIqosTst9gWE"
-ADMIN_ID = OWNER_ID
+ADMIN_ID = 1826030998
 OWNER_ID = 1826030998
 SHEET_KEY = "1EQQUHKIkDGTX90TVs-e5McLPtfypY-rx57fbBjb9-oI"
 
