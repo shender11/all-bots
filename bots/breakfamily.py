@@ -34,13 +34,47 @@ creds_dict = json.loads(creds_json)
 creds = Credentials.from_service_account_info(creds_dict, scopes=scope)
 client = gspread.authorize(creds)
 
-sheet = client.open_by_key(SHEET_KEY).sheet1
-days_off_sheet = client.open_by_key(SHEET_KEY).worksheet("DaysOff")
-users_sheet = client.open_by_key(SHEET_KEY).worksheet("Users")
-settings_sheet = client.open_by_key(SHEET_KEY).worksheet("Settings")
-active_breaks_sheet = client.open_by_key(SHEET_KEY).worksheet("ActiveBreaks")
-blocked_users_sheet = client.open_by_key(SHEET_KEY).worksheet("BlockedUsers")
-shifts_sheet = client.open_by_key(SHEET_KEY).worksheet("Shifts")
+spreadsheet = None
+sheet = None
+days_off_sheet = None
+users_sheet = None
+settings_sheet = None
+active_breaks_sheet = None
+blocked_users_sheet = None
+shifts_sheet = None
+
+
+def init_sheets():
+    global spreadsheet, sheet, days_off_sheet, users_sheet
+    global settings_sheet, active_breaks_sheet, blocked_users_sheet, shifts_sheet
+
+    spreadsheet = client.open_by_key(SHEET_KEY)
+    sheet = spreadsheet.sheet1
+    days_off_sheet = spreadsheet.worksheet("DaysOff")
+    users_sheet = spreadsheet.worksheet("Users")
+    settings_sheet = spreadsheet.worksheet("Settings")
+    active_breaks_sheet = spreadsheet.worksheet("ActiveBreaks")
+    blocked_users_sheet = spreadsheet.worksheet("BlockedUsers")
+    shifts_sheet = spreadsheet.worksheet("Shifts")
+
+
+def load_startup_data():
+    users.clear()
+    blocked_users.clear()
+    break_data.clear()
+
+    try:
+        records = users_sheet.get_all_values()
+        for r in records:
+            if len(r) > 1 and r[1].isdigit():
+                users.add(int(r[1]))
+    except:
+        pass
+
+    restore_active_breaks()
+    load_blocked_users()
+
+
 
 break_data = {}
 shift_data = {}
@@ -51,13 +85,7 @@ last_messages = {}
 blocked_users = set()
 salary_waiting = {}
 
-try:
-    records = users_sheet.get_all_values()
-    for r in records:
-        if len(r) > 1 and r[1].isdigit():
-            users.add(int(r[1]))
-except:
-    pass
+
 
 # 🔹 ГЛАВНОЕ МЕНЮ
 main_keyboard = ReplyKeyboardMarkup(
@@ -232,8 +260,7 @@ def remove_blocked_user_from_sheet(user_id):
         pass
 
 
-restore_active_breaks()
-load_blocked_users()
+
 
 def get_team_limit():
     try:
@@ -1246,6 +1273,9 @@ async def delete_user(message: Message):
 
 async def start_bot():
     print("BreakFamily bot started")
+
+    init_sheets()
+    load_startup_data()
 
     for user_id, data in break_data.items():
         asyncio.create_task(
