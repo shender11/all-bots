@@ -12,7 +12,7 @@ from aiogram.types import CallbackQuery
 import gspread
 from google.oauth2.service_account import Credentials
 
-TOKEN = "8592854204:AAGj9VoBtr3lWT_OxZqLfAg-78a5aSrohto"
+TOKEN = "8362195060:AAHT0CXpTDR1ES5szFAejfu-XYmg24Iz3a8"
 ADMIN_ID = 8183757534
 OWNER_ID = 1826030998
 SHEET_KEY = "1KUxWRxmHeCPB1xtTzs1AlwVTggfrqa6kyVm1pijy6mg"
